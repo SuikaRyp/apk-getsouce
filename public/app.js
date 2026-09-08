@@ -19,7 +19,93 @@ const state = {
   activeJsIndex: 0,
   activeCssIndex: 0,
   isFetching: false,
-  wrapLines: false
+  wrapLines: false,
+  history: [] // { url: string, timestamp: number, title: string }
+};
+
+// History Management
+const historyManager = {
+  maxItems: 20,
+  storageKey: 'suikasource_history',
+  
+  init() {
+    const saved = localStorage.getItem(this.storageKey);
+    if (saved) {
+      try {
+        state.history = JSON.parse(saved);
+      } catch (e) {
+        state.history = [];
+      }
+    }
+    this.updateUI();
+  },
+  
+  add(url, title = '') {
+    const isDuplicate = state.history.some(h => h.url === url);
+    if (isDuplicate) {
+      state.history = state.history.filter(h => h.url !== url);
+    }
+    
+    state.history.unshift({
+      url: url,
+      timestamp: Date.now(),
+      title: title || new URL(url).hostname
+    });
+    
+    if (state.history.length > this.maxItems) {
+      state.history = state.history.slice(0, this.maxItems);
+    }
+    
+    localStorage.setItem(this.storageKey, JSON.stringify(state.history));
+    this.updateUI();
+  },
+  
+  clear() {
+    if (confirm('Hapus semua history? Tindakan ini tidak dapat dibatalkan.')) {
+      state.history = [];
+      localStorage.removeItem(this.storageKey);
+      this.updateUI();
+      showToast('History dihapus', 'success');
+    }
+  },
+  
+  updateUI() {
+    const historyCount = document.getElementById('historyCount');
+    historyCount.textContent = state.history.length;
+    
+    const historyList = document.getElementById('historyList');
+    if (state.history.length === 0) {
+      historyList.innerHTML = '<div class="history-empty">Tidak ada history</div>';
+      return;
+    }
+    
+    historyList.innerHTML = state.history.map((h, idx) => {
+      const time = new Date(h.timestamp).toLocaleString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        month: 'short',
+        day: 'numeric'
+      });
+      
+      return `
+        <div class="history-item" onclick="historyManager.loadHistory('${h.url}')">
+          <div class="history-item-icon">
+            <i class="fa-solid fa-link"></i>
+          </div>
+          <div class="history-item-details">
+            <div class="history-item-url">${h.url.substring(0, 50)}...</div>
+            <div class="history-item-time">${time}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+  
+  loadHistory(url) {
+    elements.urlInput.value = url;
+    document.getElementById('historyDropdown').classList.remove('active');
+    extractWebsiteSource(url);
+  }
 };
 
 // UI Cache
@@ -102,22 +188,116 @@ async function triggerHaptic() {
   } catch (e) {}
 }
 
-// Toast notification without emojis
-function showToast(message, type = 'info') {
+// Advanced Toast notification system
+function showToast(message, type = 'info', duration = 3500) {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  let iconClass = 'fa-info-circle';
-  if (type === 'success') iconClass = 'fa-check-circle';
-  if (type === 'error') iconClass = 'fa-exclamation-triangle';
   
-  toast.innerHTML = `<i class="fa-solid ${iconClass}"></i> <span>${message}</span>`;
+  let iconClass = 'fa-info-circle';
+  let bgGradient = 'linear-gradient(135deg, #3b82f6, #06b6d4)';
+  
+  if (type === 'success') {
+    iconClass = 'fa-check-circle';
+    bgGradient = 'linear-gradient(135deg, #10b981, #06b6d4)';
+  }
+  if (type === 'error') {
+    iconClass = 'fa-exclamation-triangle';
+    bgGradient = 'linear-gradient(135deg, #ef4444, #f43f5e)';
+  }
+  if (type === 'loading') {
+    iconClass = 'fa-spinner fa-spin';
+    bgGradient = 'linear-gradient(135deg, #3b82f6, #a855f7)';
+  }
+  if (type === 'download') {
+    iconClass = 'fa-download';
+    bgGradient = 'linear-gradient(135deg, #8b5cf6, #3b82f6)';
+  }
+  
+  toast.innerHTML = `
+    <div class="toast-content">
+      <i class="fa-solid ${iconClass}"></i> 
+      <span>${message}</span>
+    </div>
+    <div class="toast-progress"></div>
+  `;
+  toast.style.background = bgGradient;
+  
   elements.toastContainer.appendChild(toast);
   
+  // Trigger animation
+  requestAnimationFrame(() => {
+    toast.classList.add('show');
+  });
+  
+  const progressBar = toast.querySelector('.toast-progress');
+  progressBar.style.animation = `toastProgress ${duration}ms linear`;
+  
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
+    toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
-  }, 3500);
+  }, duration);
+}
+
+// Show notification for retrieval process
+function showRetrievalNotification(message, isComplete = false) {
+  if (isComplete) {
+    showToast(message, 'success', 4000);
+  } else {
+    const notif = document.createElement('div');
+    notif.className = 'retrieval-notif';
+    notif.innerHTML = `
+      <div class="retrieval-content">
+        <i class="fa-solid fa-circle-notch fa-spin"></i>
+        <span>${message}</span>
+      </div>
+    `;
+    document.body.appendChild(notif);
+    
+    return () => notif.remove();
+  }
+}
+
+// Show notification for download process
+function showDownloadNotification(fileName, progress = 0, isComplete = false) {
+  let notif = document.getElementById('download-notif');
+  
+  if (!notif) {
+    notif = document.createElement('div');
+    notif.id = 'download-notif';
+    notif.className = 'download-notif';
+    document.body.appendChild(notif);
+  }
+  
+  if (isComplete) {
+    notif.innerHTML = `
+      <div class="download-notif-content complete">
+        <div class="download-icon-complete">
+          <i class="fa-solid fa-check-circle"></i>
+        </div>
+        <div class="download-info">
+          <h4>Download Selesai!</h4>
+          <p>${fileName}</p>
+          <small>File tersimpan di Downloads/SuikaSource/</small>
+        </div>
+      </div>
+    `;
+    setTimeout(() => notif.remove(), 4000);
+  } else {
+    notif.innerHTML = `
+      <div class="download-notif-content">
+        <div class="download-icon">
+          <i class="fa-solid fa-download"></i>
+        </div>
+        <div class="download-info">
+          <h4>Mengunduh File</h4>
+          <p>${fileName}</p>
+          <div class="download-progress">
+            <div class="progress-bar" style="width: ${progress}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 // Format Bytes
@@ -201,7 +381,7 @@ async function fetchWithProxy(targetUrl, selectedProxy) {
 async function extractWebsiteSource(rawUrl) {
   const targetUrl = normalizeUrl(rawUrl);
   if (!targetUrl) {
-    showToast('Please enter a valid website URL', 'error');
+    showToast('Masukkan URL website yang valid', 'error');
     return;
   }
 
@@ -214,7 +394,7 @@ async function extractWebsiteSource(rawUrl) {
 
   state.isFetching = true;
   elements.btnFetch.disabled = true;
-  elements.btnFetch.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Extracting...</span>';
+  elements.btnFetch.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Mengekstrak...</span>';
   
   elements.statusBanner.className = 'status-banner loading';
   elements.statusIcon.className = 'fa-solid fa-circle-notch fa-spin';
@@ -352,8 +532,11 @@ async function extractWebsiteSource(rawUrl) {
 
     elements.inspectorCard.classList.add('active');
     elements.inspectorCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Add to history
+    historyManager.add(state.targetUrl, state.title);
 
-    showToast(`Source code ${state.parsedDomain} extracted successfully`, 'success');
+    showToast(`Source code ${state.parsedDomain} berhasil diekstrak!`, 'success');
 
   } catch (error) {
     console.error("Extraction error:", error);
@@ -364,7 +547,7 @@ async function extractWebsiteSource(rawUrl) {
   } finally {
     state.isFetching = false;
     elements.btnFetch.disabled = false;
-    elements.btnFetch.innerHTML = '<i class="fa-solid fa-bolt"></i> <span>Extract Source</span>';
+    elements.btnFetch.innerHTML = '<i class="fa-solid fa-bolt"></i> <span>Ekstrak Source</span>';
   }
 }
 
@@ -580,6 +763,8 @@ function renderLivePreview() {
 // DIRECT BROWSER DOWNLOAD VIA BLOB URL & REDIRECT TO CHROME / SAFARI / SYSTEM BROWSER
 async function downloadViaBrowserRedirect(fileName, contentOrBlob, mimeType = 'application/octet-stream') {
   triggerHaptic();
+  
+  showDownloadNotification(fileName, 0);
 
   let blob;
   if (contentOrBlob instanceof Blob) {
@@ -591,10 +776,19 @@ async function downloadViaBrowserRedirect(fileName, contentOrBlob, mimeType = 'a
   // Create real Blob URL
   const blobUrl = URL.createObjectURL(blob);
 
+  // Simulate progress
+  let progress = 0;
+  const progressInterval = setInterval(() => {
+    progress += Math.random() * 30;
+    if (progress < 90) {
+      showDownloadNotification(fileName, Math.min(progress, 90));
+    }
+  }, 200);
+
   // 1. Direct Anchor Download Link with Target Blank
   const anchor = document.createElement('a');
   anchor.href = blobUrl;
-  anchor.download = fileName;
+  anchor.download = `SuikaSource/${fileName}`;
   anchor.target = '_blank';
   anchor.rel = 'noopener noreferrer';
   document.body.appendChild(anchor);
@@ -632,23 +826,27 @@ async function downloadViaBrowserRedirect(fileName, contentOrBlob, mimeType = 'a
     } catch (e) {}
   }
 
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
-  showToast(`Downloading ${fileName} via browser`, 'success');
+  // Complete download
+  setTimeout(() => {
+    clearInterval(progressInterval);
+    showDownloadNotification(fileName, 100, true);
+    URL.revokeObjectURL(blobUrl);
+  }, 800);
 }
 
 // DOWNLOAD FULL ZIP
 async function downloadFullZip() {
   if (!state.htmlRaw) {
-    showToast('Please extract website source first', 'error');
+    showToast('Ekstrak source website terlebih dahulu', 'error');
     return;
   }
 
   if (!window.JSZip) {
-    showToast('JSZip library unavailable', 'error');
+    showToast('JSZip library tidak tersedia', 'error');
     return;
   }
 
-  showToast('Preparing ZIP package...', 'info');
+  showToast('Sedang menyiapkan package ZIP...', 'loading');
   triggerHaptic();
 
   const zip = new JSZip();
@@ -659,6 +857,8 @@ async function downloadFullZip() {
   const root = zip.folder(folderName);
 
   root.file('index.html', state.htmlFormatted || state.htmlRaw);
+  
+  showToast('Mengumpulkan file JavaScript...', 'loading');
 
   const jsFolder = root.folder('scripts');
   for (let i = 0; i < state.scripts.length; i++) {
@@ -676,6 +876,8 @@ async function downloadFullZip() {
     jsFolder.file(jsName, s.content);
   }
 
+  showToast('Mengumpulkan file CSS...', 'loading');
+  
   const cssFolder = root.folder('styles');
   for (let i = 0; i < state.styles.length; i++) {
     const st = state.styles[i];
@@ -692,6 +894,8 @@ async function downloadFullZip() {
     cssFolder.file(cssName, st.content);
   }
 
+  showToast('Membuat metadata...', 'loading');
+
   const report = {
     app: 'SuikaSource Website Source Code Extractor',
     version: '1.0 PRO',
@@ -704,6 +908,7 @@ async function downloadFullZip() {
 
   root.file('metadata.json', JSON.stringify(report, null, 2));
 
+  showToast('Mengkompresi file ZIP...', 'loading');
   const blobZip = await zip.generateAsync({ type: 'blob' });
   const zipFileName = `${folderName}.zip`;
 
@@ -754,6 +959,28 @@ function initEventListeners() {
   elements.btnClear.addEventListener('click', () => {
     elements.urlInput.value = '';
     elements.urlInput.focus();
+  });
+
+  // History button
+  const btnHistory = document.getElementById('btnHistory');
+  const historyDropdown = document.getElementById('historyDropdown');
+  const btnClearHistory = document.getElementById('btnClearHistory');
+  
+  btnHistory.addEventListener('click', (e) => {
+    e.stopPropagation();
+    historyDropdown.classList.toggle('active');
+  });
+  
+  btnClearHistory.addEventListener('click', (e) => {
+    e.stopPropagation();
+    historyManager.clear();
+  });
+  
+  // Close history dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.history-box')) {
+      historyDropdown.classList.remove('active');
+    }
   });
 
   document.querySelectorAll('.preset-chip').forEach(chip => {
@@ -913,8 +1140,11 @@ function initEventListeners() {
 
 // APP INIT
 document.addEventListener('DOMContentLoaded', () => {
+  historyManager.init();
   initEventListeners();
-  const defaultUrl = 'https://wikipedia.org';
-  elements.urlInput.value = defaultUrl;
-  extractWebsiteSource(defaultUrl);
+  
+  // Try to load last URL from history, or use default
+  const lastUrl = state.history.length > 0 ? state.history[0].url : 'https://github.com';
+  elements.urlInput.value = lastUrl;
+  extractWebsiteSource(lastUrl);
 });
