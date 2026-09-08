@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">RSource</string>
-    <string name="title_activity_main">RSource</string>
-    <string name="package_name">com.rsource.app</string>
-    <string name="custom_url_scheme">com.rsource.app</string>
+    <string name="app_name">SuikaSource</string>
+    <string name="title_activity_main">SuikaSource</string>
+    <string name="package_name">com.suikasource.app</string>
+    <string name="custom_url_scheme">com.suikasource.app</string>
 </resources>

@@ -41,6 +41,13 @@ jobs:
           rm -f android/app/release.keystore
           keytool -genkey -v -keystore android/app/release.keystore -alias suikasource -keyalg RSA -keysize 2048 -validity 10000 -storepass android123 -keypass android123 -dname "CN=suikasource, OU=App, O=suikasourceOrg, L=Jakarta, S=ID, C=ID"
 
+      - name: Verify Keystore Alias
+        run: |
+          echo "Isi keystore yang baru dibuat:"
+          keytool -list -v -keystore android/app/release.keystore -storepass android123 | grep -i "alias name"
+          keytool -list -keystore android/app/release.keystore -storepass android123 -alias suikasource > /dev/null \
+            || (echo "::error::Alias 'suikasource' tidak ditemukan di keystore. Cek keyAlias di android/app/build.gradle harus sama persis dengan -alias di step Generate Fresh Keystore." && exit 1)
+
       - name: Build Android Signed Release APK
         run: |
           cd android

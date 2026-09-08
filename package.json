@@ -1,7 +1,7 @@
 {
-  "name": "rsource",
+  "name": "suikasource",
   "version": "1.0.0",
-  "description": "RSource — Website Source Code Extractor & Live Inspector (Android, iOS & Windows)",
+  "description": "suikasource — Website Source Code Extractor & Live Inspector (Android, iOS & Windows)",
   "main": "public/index.html",
   "scripts": {
     "cap:sync": "node node_modules/@capacitor/cli/bin/capacitor sync",
@@ -18,7 +18,7 @@
     "tauri",
     "template"
   ],
-  "author": "berusigma",
+  "author": "suikakings",
   "license": "MIT",
   "type": "module",
   "dependencies": {

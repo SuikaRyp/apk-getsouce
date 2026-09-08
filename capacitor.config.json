@@ -1,6 +1,6 @@
 {
-  "appId": "com.rsource.app",
-  "appName": "RSource",
+  "appId": "com.suikasource.app",
+  "appName": "suikasource",
   "webDir": "public",
   "plugins": {
     "CapacitorHttp": {

@@ -20,7 +20,7 @@ android {
         release {
             storeFile file('release.keystore')
             storePassword 'android123'
-            keyAlias 'rsource'
+            keyAlias 'suikasource'
             keyPassword 'android123'
         }
     }

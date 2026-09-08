@@ -1,5 +1,5 @@
 /**
- * RSOURCE — Professional Website Source Code Extractor
+ * SuikaSource — Professional Website Source Code Extractor
  * Direct Browser Redirect & Real ZIP Download Engine
  * Clean Code - No Emojis - No Parentheses
  */
@@ -654,7 +654,7 @@ async function downloadFullZip() {
   const zip = new JSZip();
   const domainClean = state.parsedDomain.replace(/[^a-z0-9]/gi, '_');
   const timestamp = new Date().toISOString().slice(0, 10);
-  const folderName = `RSource_${domainClean}_${timestamp}`;
+  const folderName = `SuikaSource_${domainClean}_${timestamp}`;
 
   const root = zip.folder(folderName);
 
@@ -693,8 +693,8 @@ async function downloadFullZip() {
   }
 
   const report = {
-    app: 'RSource Website Source Code Extractor',
-    version: '2.5 PRO',
+    app: 'SuikaSource Website Source Code Extractor',
+    version: '1.0 PRO',
     extractedAt: new Date().toLocaleString('id-ID'),
     targetUrl: state.targetUrl,
     domain: state.parsedDomain,
