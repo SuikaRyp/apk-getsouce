@@ -277,7 +277,7 @@ function showDownloadNotification(fileName, progress = 0, isComplete = false) {
         <div class="download-info">
           <h4>Download Selesai!</h4>
           <p>${fileName}</p>
-          <small>File tersimpan di Downloads/SuikaSource/</small>
+          <small>File tersimpan di Download/${DOWNLOAD_SUBFOLDER}/</small>
         </div>
       </div>
     `;
@@ -402,6 +402,8 @@ async function extractWebsiteSource(rawUrl) {
   elements.statusTags.innerHTML = '';
 
   triggerHaptic();
+
+  const closeRetrievalNotif = showRetrievalNotification(`Mengambil source code dari ${state.parsedDomain}...`);
 
   try {
     const selectedProxy = elements.proxySelect.value;
@@ -545,6 +547,7 @@ async function extractWebsiteSource(rawUrl) {
     elements.statusMessage.innerText = `Extraction failed: ${error.message}`;
     showToast(`Error: ${error.message}`, 'error');
   } finally {
+    if (typeof closeRetrievalNotif === 'function') closeRetrievalNotif();
     state.isFetching = false;
     elements.btnFetch.disabled = false;
     elements.btnFetch.innerHTML = '<i class="fa-solid fa-bolt"></i> <span>Ekstrak Source</span>';
@@ -760,10 +763,29 @@ function renderLivePreview() {
   elements.previewIframe.srcdoc = liveDoc;
 }
 
-// DIRECT BROWSER DOWNLOAD VIA BLOB URL & REDIRECT TO CHROME / SAFARI / SYSTEM BROWSER
+// Folder tempat semua hasil download disimpan
+const DOWNLOAD_SUBFOLDER = 'BikinFoldernew SuikaSource';
+
+// Convert Blob to base64 string (tanpa prefix data:...;base64,) untuk Filesystem.writeFile
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result || '';
+      const commaIdx = result.indexOf(',');
+      resolve(commaIdx !== -1 ? result.substring(commaIdx + 1) : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// REAL FILE DOWNLOAD ENGINE
+// Android  -> ditulis langsung ke penyimpanan publik: Download/BikinFoldernew SuikaSource/<file>.zip
+// iOS      -> ditulis ke folder App lalu dibagikan lewat Share Sheet supaya bisa disimpan ke Files
+// Web/Tauri-> download standar browser (otomatis masuk ke folder Downloads bawaan sistem)
 async function downloadViaBrowserRedirect(fileName, contentOrBlob, mimeType = 'application/octet-stream') {
   triggerHaptic();
-  
   showDownloadNotification(fileName, 0);
 
   let blob;
@@ -773,10 +795,10 @@ async function downloadViaBrowserRedirect(fileName, contentOrBlob, mimeType = 'a
     blob = new Blob([contentOrBlob], { type: mimeType });
   }
 
-  // Create real Blob URL
-  const blobUrl = URL.createObjectURL(blob);
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const platform = isNative && window.Capacitor.getPlatform ? window.Capacitor.getPlatform() : 'web';
 
-  // Simulate progress
+  // Simulasi progress bar sambil proses berjalan di belakang layar
   let progress = 0;
   const progressInterval = setInterval(() => {
     progress += Math.random() * 30;
@@ -785,53 +807,65 @@ async function downloadViaBrowserRedirect(fileName, contentOrBlob, mimeType = 'a
     }
   }, 200);
 
-  // 1. Direct Anchor Download Link with Target Blank
-  const anchor = document.createElement('a');
-  anchor.href = blobUrl;
-  anchor.download = `SuikaSource/${fileName}`;
-  anchor.target = '_blank';
-  anchor.rel = 'noopener noreferrer';
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-
-  // 2. Redirect to Chrome / Safari / Native System Browser if in Capacitor Native WebView
-  if (window.Capacitor && window.Capacitor.isPluginAvailable("Browser")) {
-    try {
-      await window.Capacitor.Plugins.Browser.open({ url: blobUrl });
-    } catch (e) {
-      console.warn("Capacitor Browser plugin error", e);
-    }
-  } else if (window.Capacitor && window.Capacitor.isPluginAvailable("Share")) {
-    try {
-      if (window.Capacitor.isPluginAvailable("Filesystem")) {
-        const { Filesystem, Directory } = window.Capacitor.Plugins;
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = async () => {
-          try {
-            const tempFile = await Filesystem.writeFile({
-              path: fileName,
-              data: reader.result,
-              directory: Directory.Cache
-            });
-            await window.Capacitor.Plugins.Share.share({
-              title: fileName,
-              url: tempFile.uri,
-              dialogTitle: 'Download via Browser'
-            });
-          } catch (e) {}
-        };
-      }
-    } catch (e) {}
-  }
-
-  // Complete download
-  setTimeout(() => {
+  const finishOk = () => {
     clearInterval(progressInterval);
     showDownloadNotification(fileName, 100, true);
-    URL.revokeObjectURL(blobUrl);
-  }, 800);
+  };
+
+  const finishFail = (err) => {
+    clearInterval(progressInterval);
+    console.error('Download gagal:', err);
+    const notif = document.getElementById('download-notif');
+    if (notif) notif.remove();
+    showToast(`Gagal menyimpan file: ${fileName}`, 'error');
+  };
+
+  try {
+    if (isNative && platform === 'android' && window.Capacitor.isPluginAvailable('SaveToDownloads')) {
+      // ANDROID NATIVE: tulis file asli ke /storage/emulated/0/Download/BikinFoldernew SuikaSource/
+      const base64Data = await blobToBase64(blob);
+      await window.Capacitor.Plugins.SaveToDownloads.save({
+        fileName,
+        data: base64Data,
+        mimeType,
+        subFolder: DOWNLOAD_SUBFOLDER
+      });
+      finishOk();
+      return;
+    }
+
+    if (isNative && platform === 'ios' && window.Capacitor.isPluginAvailable('Filesystem') && window.Capacitor.isPluginAvailable('Share')) {
+      // iOS: simpan ke sandbox app lalu tawarkan Share Sheet untuk disimpan ke app Files
+      const { Filesystem, Directory } = window.Capacitor.Plugins;
+      const base64Data = await blobToBase64(blob);
+      const written = await Filesystem.writeFile({
+        path: `${DOWNLOAD_SUBFOLDER}/${fileName}`,
+        data: base64Data,
+        directory: Directory.Documents,
+        recursive: true
+      });
+      await window.Capacitor.Plugins.Share.share({
+        title: fileName,
+        url: written.uri,
+        dialogTitle: 'Simpan File'
+      });
+      finishOk();
+      return;
+    }
+
+    // WEB / TAURI / FALLBACK: download standar via Blob URL
+    const blobUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = blobUrl;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    finishOk();
+  } catch (err) {
+    finishFail(err);
+  }
 }
 
 // DOWNLOAD FULL ZIP
