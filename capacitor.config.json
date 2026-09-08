@@ -1,0 +1,13 @@
+{
+  "appId": "com.rsource.app",
+  "appName": "RSource",
+  "webDir": "public",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "CapacitorCookies": {
+      "enabled": true
+    }
+  }
+}

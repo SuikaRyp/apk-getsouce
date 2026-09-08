@@ -1,0 +1,18 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Capacitor Android build artifacts
+android/app/build/
+android/app/release/
+android/.gradle/
+android/build/
+android/captures/
+android/.idea/
+*.keystore
+
+# System & OS
+.DS_Store
+Thumbs.db

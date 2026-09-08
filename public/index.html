@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RSource - Website Source Code Extractor</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- PrismJS Syntax Highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+
+  <!-- App Stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- NAVIGATION BAR -->
+    <header class="navbar">
+      <div class="brand-section">
+        <img src="rsource_logo.jpg" alt="RSource Logo" class="brand-logo" />
+        <div class="brand-info">
+          <h1>RSource <span class="brand-badge">v2.5 PRO</span></h1>
+          <p>Website Source Code Extractor</p>
+        </div>
+      </div>
+
+      <div class="nav-controls">
+        <div class="proxy-box" title="Select Proxy Server">
+          <i class="fa-solid fa-server"></i>
+          <span>Proxy:</span>
+          <select id="proxySelect">
+            <option value="auto">Auto Proxy</option>
+            <option value="allorigins">AllOrigins API</option>
+            <option value="corsproxy">CorsProxy.io</option>
+            <option value="codetabs">CodeTabs API</option>
+            <option value="direct">Direct Fetch</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO SEARCH CARD -->
+    <main class="hero-card">
+      <div class="hero-title">
+        <h2>Extract Website Source Code</h2>
+        <p>Extract complete HTML, JavaScript, CSS, and media assets from any URL directly.</p>
+      </div>
+
+      <form id="fetchForm" class="url-form">
+        <div class="input-protocol">
+          <i class="fa-solid fa-globe"></i>
+          <span id="protocolLabel">https://</span>
+        </div>
+        <input 
+          type="url" 
+          id="urlInput" 
+          class="url-input" 
+          placeholder="Enter website URL e.g. https://github.com" 
+          required 
+          autocomplete="off"
+        />
+        <div class="input-btns">
+          <button type="button" id="btnPaste" class="btn-icon" title="Paste from Clipboard">
+            <i class="fa-solid fa-paste"></i>
+          </button>
+          <button type="button" id="btnClear" class="btn-icon" title="Clear input">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button type="submit" id="btnFetch" class="btn-submit">
+            <i class="fa-solid fa-bolt"></i>
+            <span>Extract Source</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- PRESET CHIPS -->
+      <div class="presets-bar">
+        <span style="font-size:0.78rem; font-weight:600; color:var(--text-muted);">Preset Examples:</span>
+        <button class="preset-chip" data-url="https://wikipedia.org"><i class="fa-brands fa-wikipedia-w"></i> Wikipedia</button>
+        <button class="preset-chip" data-url="https://github.com"><i class="fa-brands fa-github"></i> GitHub</button>
+        <button class="preset-chip" data-url="https://news.ycombinator.com"><i class="fa-solid fa-newspaper"></i> Hacker News</button>
+        <button class="preset-chip" data-url="https://tailwindcss.com"><i class="fa-solid fa-wind"></i> TailwindCSS</button>
+      </div>
+
+      <!-- STATUS BANNER -->
+      <div id="statusBanner" class="status-banner">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <i id="statusIcon" class="fa-solid fa-circle-notch fa-spin"></i>
+          <span id="statusMessage">Extracting source code...</span>
+        </div>
+        <div id="statusTags" style="display:flex; gap:6px;"></div>
+      </div>
+    </main>
+
+    <!-- DASHBOARD CARD -->
+    <section id="inspectorCard" class="dashboard-card">
+      
+      <!-- TAB NAVIGATION -->
+      <div class="tab-nav">
+        <button class="tab-item active" data-tab="overview">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Overview</span>
+        </button>
+        <button class="tab-item" data-tab="html">
+          <i class="fa-solid fa-code"></i>
+          <span>HTML</span>
+          <span class="tab-count" id="badgeHtml">HTML</span>
+        </button>
+        <button class="tab-item" data-tab="scripts">
+          <i class="fa-brands fa-js"></i>
+          <span>Scripts</span>
+          <span class="tab-count" id="badgeScripts">0</span>
+        </button>
+        <button class="tab-item" data-tab="styles">
+          <i class="fa-solid fa-palette"></i>
+          <span>Styles</span>
+          <span class="tab-count" id="badgeStyles">0</span>
+        </button>
+        <button class="tab-item" data-tab="media">
+          <i class="fa-solid fa-image"></i>
+          <span>Assets</span>
+          <span class="tab-count" id="badgeMedia">0</span>
+        </button>
+        <button class="tab-item" data-tab="preview">
+          <i class="fa-solid fa-desktop"></i>
+          <span>Live Preview</span>
+        </button>
+        <button class="tab-item" data-tab="download">
+          <i class="fa-solid fa-download"></i>
+          <span>Download</span>
+        </button>
+      </div>
+
+      <!-- OVERVIEW TAB -->
+      <div id="tab-overview" class="tab-pane active">
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-icon">
+              <i class="fa-solid fa-file-code"></i>
+            </div>
+            <div class="stat-details">
+              <h4>HTML Size</h4>
+              <div class="stat-val" id="statHtmlSize">0 KB</div>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon">
+              <i class="fa-brands fa-js"></i>
+            </div>
+            <div class="stat-details">
+              <h4>JavaScript Files</h4>
+              <div class="stat-val" id="statJsCount">0 File</div>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon">
+              <i class="fa-solid fa-palette"></i>
+            </div>
+            <div class="stat-details">
+              <h4>CSS Stylesheets</h4>
+              <div class="stat-val" id="statCssCount">0 File</div>
+            </div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-icon">
+              <i class="fa-solid fa-image"></i>
+            </div>
+            <div class="stat-details">
+              <h4>Media Assets</h4>
+              <div class="stat-val" id="statMediaCount">0 Asset</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTION BANNER -->
+        <div class="action-banner">
+          <div class="action-banner-text">
+            <h3>Source Code Ready for Export</h3>
+            <p>Download the complete source package directly to your browser or system download directory.</p>
+          </div>
+          <div class="btn-group">
+            <button id="btnQuickZip" class="btn-primary">
+              <i class="fa-solid fa-file-zipper"></i>
+              <span>Download ZIP Package</span>
+            </button>
+            <button id="btnQuickCopyHtml" class="btn-secondary">
+              <i class="fa-solid fa-copy"></i>
+              <span>Copy HTML</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- METADATA CARD -->
+        <div class="metadata-card">
+          <h3><i class="fa-solid fa-circle-info"></i> Target Website Metadata</h3>
+          <table class="meta-table">
+            <tbody>
+              <tr>
+                <td class="meta-label">Target URL</td>
+                <td class="meta-content mono-font" id="metaUrl">-</td>
+              </tr>
+              <tr>
+                <td class="meta-label">Page Title</td>
+                <td class="meta-content" id="metaTitle">-</td>
+              </tr>
+              <tr>
+                <td class="meta-label">Meta Description</td>
+                <td class="meta-content" id="metaDescription">-</td>
+              </tr>
+              <tr>
+                <td class="meta-label">Favicon URL</td>
+                <td class="meta-content" id="metaFavicon">-</td>
+              </tr>
+              <tr>
+                <td class="meta-label">Detected Links</td>
+                <td class="meta-content" id="metaLinksCount">0 links</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- HTML CODE TAB -->
+      <div id="tab-html" class="tab-pane">
+        <div class="code-toolbar">
+          <div class="code-title">
+            <i class="fa-solid fa-file-code"></i>
+            <span>File: <strong>index.html</strong></span>
+          </div>
+
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="searchHtml" placeholder="Search code..." />
+          </div>
+
+          <div class="code-action-btns">
+            <button id="btnFormatHtml" class="btn-code-action"><i class="fa-solid fa-wand-magic-sparkles"></i> Beautify</button>
+            <button id="btnToggleWrapHtml" class="btn-code-action"><i class="fa-solid fa-align-left"></i> Toggle Wrap</button>
+            <button id="btnCopyHtml" class="btn-code-action"><i class="fa-solid fa-copy"></i> Copy HTML</button>
+            <button id="btnDownloadHtml" class="btn-code-action"><i class="fa-solid fa-download"></i> Download HTML</button>
+          </div>
+        </div>
+
+        <div class="code-view-pane" id="htmlCodeContainer">
+          <pre><code class="language-html" id="htmlCodeViewer">&lt;!-- Source code will be displayed here --&gt;</code></pre>
+        </div>
+      </div>
+
+      <!-- SCRIPTS JS TAB -->
+      <div id="tab-scripts" class="tab-pane">
+        <div class="resource-layout">
+          <div class="resource-list" id="jsSidebar">
+            <h4>JavaScript Files</h4>
+            <div id="jsListContainer"></div>
+          </div>
+
+          <div style="display:flex; flex-direction:column;">
+            <div class="code-toolbar">
+              <div class="code-title">
+                <i class="fa-brands fa-js" style="color:#f59e0b;"></i>
+                <span>Selected: <strong id="jsSelectedTitle">Inline Script 1</strong></span>
+              </div>
+              <div class="code-action-btns">
+                <button id="btnFormatJs" class="btn-code-action"><i class="fa-solid fa-wand-magic-sparkles"></i> Beautify</button>
+                <button id="btnCopyJs" class="btn-code-action"><i class="fa-solid fa-copy"></i> Copy JS</button>
+                <button id="btnDownloadJs" class="btn-code-action"><i class="fa-solid fa-download"></i> Download JS</button>
+              </div>
+            </div>
+            <div class="code-view-pane" id="jsCodeContainer">
+              <pre><code class="language-javascript" id="jsCodeViewer">// Select a script from the sidebar</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STYLES CSS TAB -->
+      <div id="tab-styles" class="tab-pane">
+        <div class="resource-layout">
+          <div class="resource-list" id="cssSidebar">
+            <h4>CSS Stylesheets</h4>
+            <div id="cssListContainer"></div>
+          </div>
+
+          <div style="display:flex; flex-direction:column;">
+            <div class="code-toolbar">
+              <div class="code-title">
+                <i class="fa-solid fa-palette" style="color:#3b82f6;"></i>
+                <span>Selected: <strong id="cssSelectedTitle">Inline Style 1</strong></span>
+              </div>
+              <div class="code-action-btns">
+                <button id="btnFormatCss" class="btn-code-action"><i class="fa-solid fa-wand-magic-sparkles"></i> Beautify</button>
+                <button id="btnCopyCss" class="btn-code-action"><i class="fa-solid fa-copy"></i> Copy CSS</button>
+                <button id="btnDownloadCss" class="btn-code-action"><i class="fa-solid fa-download"></i> Download CSS</button>
+              </div>
+            </div>
+            <div class="code-view-pane" id="cssCodeContainer">
+              <pre><code class="language-css" id="cssCodeViewer">/* Select a stylesheet from the sidebar */</code></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ASSETS TAB -->
+      <div id="tab-media" class="tab-pane">
+        <div class="asset-filters">
+          <span style="font-weight:700; font-size:0.8rem;">Filter:</span>
+          <button class="btn-xs active" data-filter="all">All Assets</button>
+          <button class="btn-xs" data-filter="img">Images</button>
+          <button class="btn-xs" data-filter="svg">SVG Vector</button>
+          <button class="btn-xs" data-filter="icon">Favicon Icon</button>
+        </div>
+
+        <div class="asset-grid" id="assetGridContainer"></div>
+      </div>
+
+      <!-- LIVE PREVIEW TAB -->
+      <div id="tab-preview" class="tab-pane">
+        <div class="preview-header">
+          <div class="viewport-btns">
+            <button class="vp-btn active" data-vp="desktop"><i class="fa-solid fa-desktop"></i> Desktop</button>
+            <button class="vp-btn" data-vp="laptop"><i class="fa-solid fa-laptop"></i> Laptop 1024px</button>
+            <button class="vp-btn" data-vp="tablet"><i class="fa-solid fa-tablet-screen-button"></i> Tablet 768px</button>
+            <button class="vp-btn" data-vp="mobile"><i class="fa-solid fa-mobile-screen-button"></i> Mobile 375px</button>
+          </div>
+
+          <div style="display:flex; gap:8px;">
+            <button id="btnRefreshFrame" class="btn-secondary"><i class="fa-solid fa-rotate-right"></i> Refresh</button>
+            <button id="btnOpenNewTab" class="btn-primary"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Live Site</button>
+          </div>
+        </div>
+
+        <div class="iframe-wrapper">
+          <div class="iframe-box desktop" id="iframeBox">
+            <iframe id="previewIframe" title="Live Preview" sandbox="allow-scripts allow-same-origin"></iframe>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOWNLOAD CENTER TAB -->
+      <div id="tab-download" class="tab-pane">
+        <div class="download-hero">
+          <div class="download-hero-info">
+            <h3>Download Complete Website Source Package ZIP</h3>
+            <p>Export all extracted HTML, JavaScript, CSS stylesheets, media references, and metadata directly to your system browser download manager.</p>
+          </div>
+          <button id="btnDownloadZipFull" class="btn-download-hero">
+            <i class="fa-solid fa-circle-down"></i>
+            <span>Download ZIP Package</span>
+          </button>
+        </div>
+
+        <div class="download-grid">
+          <div class="download-card">
+            <div class="dl-icon"><i class="fa-solid fa-file-code"></i></div>
+            <div class="dl-details">
+              <h4>Download index.html</h4>
+              <p>Primary HTML document of target website</p>
+            </div>
+            <button id="btnDlHtmlOnly" class="btn-secondary" style="margin-top:auto;"><i class="fa-solid fa-download"></i> Download HTML</button>
+          </div>
+
+          <div class="download-card">
+            <div class="dl-icon" style="background:#fef3c7; color:#d97706;"><i class="fa-brands fa-js"></i></div>
+            <div class="dl-details">
+              <h4>Download JS Bundle</h4>
+              <p>Combined JavaScript file containing all scripts</p>
+            </div>
+            <button id="btnDlJsBundle" class="btn-secondary" style="margin-top:auto;"><i class="fa-solid fa-download"></i> Download JS Bundle</button>
+          </div>
+
+          <div class="download-card">
+            <div class="dl-icon" style="background:#e0e7ff; color:#4338ca;"><i class="fa-solid fa-palette"></i></div>
+            <div class="dl-details">
+              <h4>Download CSS Bundle</h4>
+              <p>Combined CSS file containing all stylesheets</p>
+            </div>
+            <button id="btnDlCssBundle" class="btn-secondary" style="margin-top:auto;"><i class="fa-solid fa-download"></i> Download CSS Bundle</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- LIBRARIES -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-html.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.9/beautify-js.min.js"></script>
+
+  <!-- Main App Script -->
+  <script type="module" src="app.js"></script>
+
+</body>
+</html>
